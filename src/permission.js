@@ -35,7 +35,12 @@ router.beforeEach(async(to, from, next) => {
           console.log('[路由守卫] 获取权限:', permissions)
           
           console.log('[路由守卫] 正在注册动态路由...')
-          const accessedRoutes = await store.dispatch('routes/setRoutes', permissions)
+          try {
+            const accessedRoutes = await store.dispatch('routes/setRoutes', permissions)
+            console.log('[路由守卫] 路由注册成功:', accessedRoutes)
+          } catch (routeError) {
+            console.error('[路由守卫] 注册路由失败:', routeError)
+          }
           
           // 注册动态路由
           asyncRoutes.forEach(route => {
