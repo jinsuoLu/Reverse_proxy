@@ -92,17 +92,68 @@ cd server && node index.js
 
 ### 手动部署
 
-1. **创建 Web Service**
+1. **访问 Render**：https://dashboard.render.com/
+
+2. **创建 Web Service**：
+   - 点击 "New +" → "Web Service"
    - 连接 GitHub 仓库：`https://github.com/jinsuoLu/Reverse_proxy`
-   - Build Command: `npm install && npm install --prefix server && npm run build`
-   - Start Command: `node server/index.js`
 
-2. **环境变量**
-   - `NODE_ENV` = `production`
-   - `PORT` = `10000` (Render 自动分配)
+3. **配置服务**：
+   - **Name**: `reverse-proxy` (或您喜欢的名字)
+   - **Region**: `Singapore` (亚洲节点最快)
+   - **Branch**: `main`
+   - **Root Directory**: (留空)
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install --legacy-peer-deps && npm run build`
+   - **Start Command**: `node server/index.js`
+   - **Instance Type**: `Free`
 
-3. **部署完成**
-   - 访问地址：`https://your-service-name.onrender.com`
+4. **环境变量 (Env Vars)**：
+   | Key | Value |
+   |-----|-------|
+   | NODE_ENV | production |
+
+5. **点击 "Create Web Service"**
+
+### 部署完成
+
+访问地址类似：`https://reverse-proxy.onrender.com`
+
+**登录账户**：
+- 用户名：`admin`
+- 密码：`123456`
+
+---
+
+## 🔧 Render 部署故障排除
+
+### 问题 1：依赖安装失败 (ERESOLVE)
+**解决方法**：确保使用 `--legacy-peer-deps` 标志
+- Build Command: `npm install --legacy-peer-deps && npm run build`
+
+### 问题 2：构建超时
+**解决方法**：
+- 确保使用免费计划
+- 检查 Node.js 版本兼容性 (使用 18 或 20)
+- 我们的项目已配置 `.npmrc` 文件自动处理
+
+### 问题 3：构建成功但无法启动
+**检查清单**：
+1. 查看 "Logs" 标签页
+2. 确认 `dist` 目录已生成
+3. 检查端口配置 (应使用 `process.env.PORT`)
+
+### 完整的部署配置示例
+使用项目中的 `render.yaml` 可自动配置所有参数！
+
+---
+
+## 💡 Render 免费版说明
+
+- 15 分钟无流量后会自动休眠
+- 首次访问需要 30 秒左右唤醒
+- 完全免费，适合测试和小规模使用
+- SQLite 数据会在实例重启时保留（只要不重新部署）
 
 ## 🔌 API 接口
 

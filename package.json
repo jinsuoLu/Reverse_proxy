@@ -99,7 +99,7 @@
     "management-system"
   ],
   "engines": {
-    "node": ">=8.9",
-    "npm": ">= 3.0.0"
+    "node": ">=16.0.0 <=20.x",
+    "npm": ">= 7.0.0"
   }
 }
