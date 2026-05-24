@@ -30,7 +30,7 @@ function decryptRSA(encryptedData) {
 }
 
 const app = express()
-const PORT = process.env.PROXY_PORT || 3001
+const PORT = process.env.PORT || process.env.PROXY_PORT || 3001
 
 const isProduction = process.env.NODE_ENV === 'production'
 const corsOptions = isProduction ? {
