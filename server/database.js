@@ -164,11 +164,26 @@ function getPool() {
   return pool
 }
 
+async function deleteAllProxies() {
+  if (!pool) {
+    await initDatabase()
+  }
+  
+  try {
+    const result = await pool.query('DELETE FROM proxies')
+    return result.rowCount || 0
+  } catch (err) {
+    console.error('[DB] Delete all proxies error:', err)
+    return 0
+  }
+}
+
 module.exports = {
   queryAll,
   queryOne,
   runSql,
   waitForDatabase,
   getPool,
-  initDatabase
+  initDatabase,
+  deleteAllProxies
 }

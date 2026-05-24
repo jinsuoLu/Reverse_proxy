@@ -497,14 +497,9 @@ app.delete('/api/proxy/:token', async (req, res) => {
 
 app.delete('/api/proxy/all', async (req, res) => {
   try {
-    const allProxies = await ProxyModel.getAll()
-    let deletedCount = 0
-    for (const proxy of allProxies) {
-      await ProxyModel.delete(proxy.token)
-      tokenManager.removeToken(proxy.token)
-      deletedCount++
-    }
-    console.log(`[DEBUG] Deleted all ${deletedCount} proxies`)
+    const { deleteAllProxies } = require('./database')
+    const deletedCount = await deleteAllProxies()
+    console.log(`[DEBUG] Deleted all ${deletedCount} proxies using direct SQL`)
     res.json({ code: 200, success: true, deletedCount, msg: 'success' })
   } catch (error) {
     console.error('[PROXY] Error deleting all proxies:', error)
