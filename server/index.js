@@ -72,7 +72,11 @@ function generateToken() {
 }
 
 function formatExpiredDate(expireTime) {
-  const d = new Date(expireTime)
+  const timestamp = typeof expireTime === 'string' ? parseInt(expireTime, 10) : expireTime
+  if (isNaN(timestamp) || !timestamp) {
+    return '2026-07-31 00:00:00'
+  }
+  const d = new Date(timestamp)
   return d.getFullYear() + '-' +
     String(d.getMonth() + 1).padStart(2, '0') + '-' +
     String(d.getDate()).padStart(2, '0') + ' ' +
