@@ -58,3 +58,11 @@ export async function batchCreateProxy(items, imageId = '') {
     data: { items, imageId }
   })
 }
+
+export async function batchDeleteProxy(tokens) {
+  return request({
+    url: '/api/proxy/batch-delete',
+    method: 'post',
+    data: { tokens }
+  })
+}

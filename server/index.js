@@ -101,8 +101,10 @@ function cleanupExpiredProxies() {
   const allProxies = ProxyModel.getAll()
 
   allProxies.forEach(proxy => {
-    if (proxy.expire_time <= now && proxy.status === 'active') {
-      ProxyModel.markAsExpired(proxy.token)
+    if (proxy.expire_time <= now) {
+      ProxyModel.delete(proxy.token)
+      tokenManager.removeToken(proxy.token)
+      console.log(`[PROXY] Deleted expired proxy: ${proxy.token}`)
     }
   })
 }
@@ -471,6 +473,41 @@ app.delete('/api/proxy/:token', (req, res) => {
   } catch (error) {
     console.error('[PROXY] Error deleting proxy:', error)
     res.status(500).json({ code: 500, success: false, msg: 'Failed to delete proxy' })
+  }
+})
+
+app.post('/api/proxy/batch-delete', (req, res) => {
+  try {
+    const { tokens } = req.body
+
+    if (!tokens || !Array.isArray(tokens)) {
+      return res.status(400).json({ code: 400, success: false, msg: 'Invalid tokens array' })
+    }
+
+    let deletedCount = 0
+    const failedTokens = []
+
+    for (const token of tokens) {
+      const existed = ProxyModel.getByToken(token)
+      if (existed) {
+        ProxyModel.delete(token)
+        tokenManager.removeToken(token)
+        deletedCount++
+      } else {
+        failedTokens.push(token)
+      }
+    }
+
+    res.json({ 
+      code: 200, 
+      success: true, 
+      deletedCount,
+      failedTokens,
+      msg: `Successfully deleted ${deletedCount} items` 
+    })
+  } catch (error) {
+    console.error('[PROXY] Error batch deleting proxies:', error)
+    res.status(500).json({ code: 500, success: false, msg: 'Failed to batch delete proxies' })
   }
 })
 

@@ -8,18 +8,26 @@
 
     <vab-query-form>
       <vab-query-form-left-panel>
-        <el-button icon="el-icon-plus" type="primary" @click="handleAdd">新增授权API</el-button>
-        <el-button icon="el-icon-files" type="warning" @click="handleBatchAdd">批量添加</el-button>
-        <el-button 
-          icon="el-icon-upload2" 
-          type="success" 
-          @click="handleBatchExport"
-          :disabled="selectedRows.length === 0"
-        >
-          批量导出链接
-        </el-button>
-        <el-button icon="el-icon-refresh" type="info" @click="loadProxies">刷新列表</el-button>
-      </vab-query-form-left-panel>
+      <el-button icon="el-icon-plus" type="primary" @click="handleAdd">新增授权API</el-button>
+      <el-button icon="el-icon-files" type="warning" @click="handleBatchAdd">批量添加</el-button>
+      <el-button 
+        icon="el-icon-upload2" 
+        type="success" 
+        @click="handleBatchExport"
+        :disabled="selectedRows.length === 0"
+      >
+        批量导出链接
+      </el-button>
+      <el-button 
+        icon="el-icon-delete" 
+        type="danger" 
+        @click="handleBatchDelete"
+        :disabled="selectedRows.length === 0"
+      >
+        批量删除
+      </el-button>
+      <el-button icon="el-icon-refresh" type="info" @click="loadProxies">刷新列表</el-button>
+    </vab-query-form-left-panel>
       <vab-query-form-right-panel>
         <el-form ref="searchForm" :inline="true" :model="searchForm" @submit.native.prevent>
           <el-form-item>
@@ -250,7 +258,7 @@
 
 <script>
 import VabPageHeader from '@/components/VabPageHeader'
-import { createProxy, listProxies, deleteProxy, refreshCaptcha, getProxyUrl as getApiProxyUrl, batchCreateProxy, uploadImage } from '@/api/proxy'
+import { createProxy, listProxies, deleteProxy, refreshCaptcha, getProxyUrl as getApiProxyUrl, batchCreateProxy, uploadImage, batchDeleteProxy } from '@/api/proxy'
 
 export default {
   name: 'ApiAuthorization',
@@ -767,6 +775,34 @@ export default {
       document.body.removeChild(link)
 
       this.$message.success('导出成功')
+    },
+    async handleBatchDelete() {
+      if (this.selectedRows.length === 0) {
+        this.$message.warning('请先选择要删除的记录')
+        return
+      }
+
+      try {
+        await this.$confirm(`确定要删除选中的 ${this.selectedRows.length} 条记录吗？`, '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+
+        const tokens = this.selectedRows.map(row => row.token)
+        const res = await batchDeleteProxy(tokens)
+        if (res.success) {
+          this.$message.success(`成功删除 ${res.deletedCount} 条记录`)
+          this.selectedRows = []
+          this.loadProxies()
+        } else {
+          this.$message.error(res.msg || '删除失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$message.error('删除失败')
+        }
+      }
     },
   },
 }
