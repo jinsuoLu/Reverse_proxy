@@ -112,6 +112,12 @@ function cleanupExpiredProxies() {
 setInterval(cleanupExpiredProxies, 60000)
 cleanupExpiredProxies()
 
+function getProxyUrl(req, token) {
+  const protocol = req.protocol
+  const host = req.get('host')
+  return `${protocol}://${host}/proxy/${token}`
+}
+
 app.post('/login', (req, res) => {
   let { username, password } = req.body
 
@@ -283,8 +289,7 @@ app.post('/api/proxy/create', (req, res) => {
       userId
     })
 
-    const proxyPath = `/proxy/${token}`
-    const proxyUrl = `http://localhost:${PORT}${proxyPath}`
+    const proxyUrl = getProxyUrl(req, token)
 
     console.log(`[PROXY] Created proxy token: ${token}`)
     console.log(`[PROXY] Phone: ${phone || 'N/A'}`)
@@ -391,7 +396,7 @@ app.post('/api/proxy/batch-create', (req, res) => {
           imageBase64
         })
 
-        const proxy = ProxyModel.create({
+        ProxyModel.create({
           token,
           phone,
           targetUrl,
@@ -402,7 +407,7 @@ app.post('/api/proxy/batch-create', (req, res) => {
           userId
         })
 
-        const proxyUrl = `http://localhost:${PORT}/proxy/${token}`
+        const proxyUrl = getProxyUrl(req, token)
 
         results.push({
           token,
@@ -566,7 +571,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
                 msg: 'success',
                 data: {
                   token,
-                  proxyUrl: `http://localhost:${PORT}/proxy/${token}`,
+                  proxyUrl: getProxyUrl(req, token),
                   expiredDate: formatExpiredDate(proxy.expire_time),
                   code: code,
                   code_time: captchaTime
@@ -579,7 +584,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
                 msg: 'success',
                 data: {
                   token,
-                  proxyUrl: `http://localhost:${PORT}/proxy/${token}`,
+                  proxyUrl: getProxyUrl(req, token),
                   expiredDate: formatExpiredDate(proxy.expire_time),
                   code: proxy.captcha_code || '',
                   code_time: proxy.captcha_time || ''
@@ -593,7 +598,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
               msg: 'success',
               data: {
                 token,
-                proxyUrl: `http://localhost:${PORT}/proxy/${token}`,
+                proxyUrl: getProxyUrl(req, token),
                 expiredDate: formatExpiredDate(proxy.expire_time),
                 code: proxy.captcha_code || '',
                 code_time: proxy.captcha_time || ''
@@ -608,7 +613,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
             msg: 'success',
             data: {
               token,
-              proxyUrl: `http://localhost:${PORT}/proxy/${token}`,
+              proxyUrl: getProxyUrl(req, token),
               expiredDate: formatExpiredDate(proxy.expire_time),
               code: proxy.captcha_code || '',
               code_time: proxy.captcha_time || ''
@@ -626,7 +631,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
         msg: 'success',
         data: {
           token,
-          proxyUrl: `http://localhost:${PORT}/proxy/${token}`,
+          proxyUrl: getProxyUrl(req, token),
           expiredDate: formatExpiredDate(proxy.expire_time),
           code: proxy.captcha_code || '',
           code_time: proxy.captcha_time || ''

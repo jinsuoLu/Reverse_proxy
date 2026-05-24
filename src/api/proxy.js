@@ -48,7 +48,8 @@ export async function refreshCaptcha(token) {
 }
 
 export function getProxyUrl(token) {
-  return `${backendServerUrl}/proxy/${token}`
+  const origin = window.location.origin
+  return `${origin}/proxy/${token}`
 }
 
 export async function batchCreateProxy(items, imageId = '') {

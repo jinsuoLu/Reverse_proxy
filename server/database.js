@@ -18,6 +18,7 @@ async function initDatabase() {
   let data = null
   if (fs.existsSync(dbPath)) {
     data = fs.readFileSync(dbPath)
+    console.log('[DB] Loaded existing database')
   }
   
   db = new SQL.Database(data)
@@ -72,9 +73,8 @@ async function initDatabase() {
     db.run(`INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ['test', 'test', '123456', '测试员', 'test@example.com', 'user', 'active', '["user"]', now, now])
     console.log('[DB] Initial users created')
+    saveDatabase()
   }
-  
-  saveDatabase()
   
   return db
 }
@@ -84,6 +84,7 @@ function saveDatabase() {
     const data = db.export()
     const buffer = Buffer.from(data)
     fs.writeFileSync(dbPath, buffer)
+    console.log('[DB] Database saved')
   }
 }
 
@@ -95,10 +96,17 @@ function waitForDatabase() {
   return dbReady
 }
 
+function runWithSave(sql, params = []) {
+  const result = db.run(sql, params)
+  saveDatabase()
+  return result
+}
+
 dbReady = initDatabase()
 
 module.exports = {
   getDatabase,
   saveDatabase,
-  waitForDatabase
+  waitForDatabase,
+  runWithSave
 }
