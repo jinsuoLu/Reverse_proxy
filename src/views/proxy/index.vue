@@ -360,6 +360,7 @@ export default {
       try {
         const res = await listProxies()
         console.log('[DEBUG] loadProxies res:', res)
+        console.log('[DEBUG] loadProxies data:', res.data)
         if (res && (res.success || res.code === 200)) {
           let data = res.data || []
           // 确保 data 是数组
@@ -367,12 +368,15 @@ export default {
             data = []
           }
           this.proxyList = data.map(item => {
+            console.log('[DEBUG] Processing item:', item)
             const expireTs = typeof item.expireTime === 'string' ? parseInt(item.expireTime, 10) : item.expireTime
-            return {
+            const processed = {
               ...item,
               remainingTime: this.calculateRemainingTime(expireTs),
               isExpired: expireTs <= Date.now(),
             }
+            console.log('[DEBUG] Processed item:', processed)
+            return processed
           })
           this.total = this.proxyList.length
         }

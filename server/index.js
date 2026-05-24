@@ -323,19 +323,24 @@ app.get('/api/proxy/list', async (req, res) => {
   try {
     const now = Date.now()
     const allProxies = await ProxyModel.getAll()
-    const proxies = allProxies.map(proxy => ({
-      token: proxy.token,
-      phone: proxy.phone || '',
-      apiUrl: proxy.target_url,
-      expireTime: proxy.expire_time,
-      expiredDate: formatExpiredDate(proxy.expire_time),
-      remainingTime: Math.max(0, proxy.expire_time - now),
-      isExpired: proxy.expire_time <= now,
-      captchaCode: proxy.captcha_code || '',
-      captchaTime: proxy.captcha_time || '',
-      status: proxy.status,
-      userId: proxy.user_id
-    }))
+    console.log('[DEBUG] All proxies from DB:', allProxies)
+    const proxies = allProxies.map(proxy => {
+      const proxyData = {
+        token: proxy.token,
+        phone: proxy.phone || '',
+        apiUrl: proxy.target_url,
+        expireTime: proxy.expire_time,
+        expiredDate: formatExpiredDate(proxy.expire_time),
+        remainingTime: Math.max(0, proxy.expire_time - now),
+        isExpired: proxy.expire_time <= now,
+        captchaCode: proxy.captcha_code || '',
+        captchaTime: proxy.captcha_time || '',
+        status: proxy.status,
+        userId: proxy.user_id
+      }
+      console.log('[DEBUG] Proxy data:', proxyData)
+      return proxyData
+    })
 
     res.json({
       code: 200,

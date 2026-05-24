@@ -117,7 +117,19 @@ async function queryAll(sql, params = []) {
   
   try {
     const result = await pool.query(sql, params)
-    return result.rows
+    return result.rows.map(row => {
+      const convertedRow = { ...row }
+      if (convertedRow.expire_time !== undefined && convertedRow.expire_time !== null) {
+        convertedRow.expire_time = Number(convertedRow.expire_time)
+      }
+      if (convertedRow.created_at !== undefined && convertedRow.created_at !== null) {
+        convertedRow.created_at = Number(convertedRow.created_at)
+      }
+      if (convertedRow.updated_at !== undefined && convertedRow.updated_at !== null) {
+        convertedRow.updated_at = Number(convertedRow.updated_at)
+      }
+      return convertedRow
+    })
   } catch (err) {
     console.error('[DB] Query error:', err)
     return []
