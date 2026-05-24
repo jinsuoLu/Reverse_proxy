@@ -48,55 +48,45 @@ class ProxyModel {
 
     const updates = []
     const params = []
-    let paramIndex = 1
 
     if (phone !== undefined) {
-      updates.push(`phone = $${paramIndex}`)
+      updates.push(`phone = $${params.length + 1}`)
       params.push(phone)
-      paramIndex++
     }
     if (targetUrl !== undefined) {
-      updates.push(`target_url = $${paramIndex}`)
+      updates.push(`target_url = $${params.length + 1}`)
       params.push(targetUrl)
-      paramIndex++
     }
     if (expireTime !== undefined) {
-      updates.push(`expire_time = $${paramIndex}`)
+      updates.push(`expire_time = $${params.length + 1}`)
       params.push(expireTime)
-      paramIndex++
     }
     if (captchaCode !== undefined) {
-      updates.push(`captcha_code = $${paramIndex}`)
+      updates.push(`captcha_code = $${params.length + 1}`)
       params.push(captchaCode)
-      paramIndex++
     }
     if (captchaTime !== undefined) {
-      updates.push(`captcha_time = $${paramIndex}`)
+      updates.push(`captcha_time = $${params.length + 1}`)
       params.push(captchaTime)
-      paramIndex++
     }
     if (imageBase64 !== undefined) {
-      updates.push(`image_base64 = $${paramIndex}`)
+      updates.push(`image_base64 = $${params.length + 1}`)
       params.push(imageBase64)
-      paramIndex++
     }
     if (status !== undefined) {
-      updates.push(`status = $${paramIndex}`)
+      updates.push(`status = $${params.length + 1}`)
       params.push(status)
-      paramIndex++
     }
     if (userId !== undefined) {
-      updates.push(`user_id = $${paramIndex}`)
+      updates.push(`user_id = $${params.length + 1}`)
       params.push(userId)
-      paramIndex++
     }
 
-    updates.push(`updated_at = $${paramIndex}`)
+    updates.push(`updated_at = $${params.length + 1}`)
     params.push(now)
-    paramIndex++
     params.push(token)
 
-    return await runSql(`UPDATE proxies SET ${updates.join(', ')} WHERE token = $${paramIndex - 1}`, params)
+    return await runSql(`UPDATE proxies SET ${updates.join(', ')} WHERE token = $${params.length}`, params)
   }
 
   static async delete(token) {

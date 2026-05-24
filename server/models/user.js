@@ -42,45 +42,37 @@ class UserModel {
 
     const updates = []
     const params = []
-    let paramIndex = 1
 
     if (password !== undefined) {
-      updates.push(`password = $${paramIndex}`)
+      updates.push(`password = $${params.length + 1}`)
       params.push(password)
-      paramIndex++
     }
     if (nickname !== undefined) {
-      updates.push(`nickname = $${paramIndex}`)
+      updates.push(`nickname = $${params.length + 1}`)
       params.push(nickname)
-      paramIndex++
     }
     if (email !== undefined) {
-      updates.push(`email = $${paramIndex}`)
+      updates.push(`email = $${params.length + 1}`)
       params.push(email)
-      paramIndex++
     }
     if (role !== undefined) {
-      updates.push(`role = $${paramIndex}`)
+      updates.push(`role = $${params.length + 1}`)
       params.push(role)
-      paramIndex++
     }
     if (status !== undefined) {
-      updates.push(`status = $${paramIndex}`)
+      updates.push(`status = $${params.length + 1}`)
       params.push(status)
-      paramIndex++
     }
     if (permissions !== undefined) {
-      updates.push(`permissions = $${paramIndex}`)
+      updates.push(`permissions = $${params.length + 1}`)
       params.push(JSON.stringify(permissions))
-      paramIndex++
     }
 
-    updates.push(`updated_at = $${paramIndex}`)
+    updates.push(`updated_at = $${params.length + 1}`)
     params.push(now)
-    paramIndex++
     params.push(id)
 
-    return await runSql(`UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex - 1}`, params)
+    return await runSql(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params)
   }
 
   static async delete(id) {
