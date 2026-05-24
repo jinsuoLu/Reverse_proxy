@@ -493,6 +493,23 @@ app.delete('/api/proxy/:token', async (req, res) => {
   }
 })
 
+app.delete('/api/proxy/all', async (req, res) => {
+  try {
+    const allProxies = await ProxyModel.getAll()
+    let deletedCount = 0
+    for (const proxy of allProxies) {
+      await ProxyModel.delete(proxy.token)
+      tokenManager.removeToken(proxy.token)
+      deletedCount++
+    }
+    console.log(`[DEBUG] Deleted all ${deletedCount} proxies`)
+    res.json({ code: 200, success: true, deletedCount, msg: 'success' })
+  } catch (error) {
+    console.error('[PROXY] Error deleting all proxies:', error)
+    res.status(500).json({ code: 500, success: false, msg: 'Failed to delete all proxies' })
+  }
+})
+
 app.post('/api/proxy/batch-delete', async (req, res) => {
   try {
     const { tokens } = req.body
