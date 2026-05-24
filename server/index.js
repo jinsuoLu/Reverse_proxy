@@ -94,21 +94,20 @@ function formatDuration(seconds) {
   return secs + '秒'
 }
 
-function cleanupExpiredProxies() {
+async function cleanupExpiredProxies() {
   const now = Date.now()
-  const allProxies = ProxyModel.getAll()
+  const allProxies = await ProxyModel.getAll()
 
-  allProxies.forEach(proxy => {
+  for (const proxy of allProxies) {
     if (proxy.expire_time <= now) {
-      ProxyModel.delete(proxy.token)
+      await ProxyModel.delete(proxy.token)
       tokenManager.removeToken(proxy.token)
       console.log(`[PROXY] Deleted expired proxy: ${proxy.token}`)
     }
-  })
+  }
 }
 
 setInterval(cleanupExpiredProxies, 60000)
-cleanupExpiredProxies()
 
 function getProxyUrl(req, token) {
   const protocol = req.protocol
@@ -116,7 +115,7 @@ function getProxyUrl(req, token) {
   return `${protocol}://${host}/proxy/${token}`
 }
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   let { username, password } = req.body
 
   if (req.body.param) {
@@ -139,7 +138,7 @@ app.post('/login', (req, res) => {
     return res.status(400).json({ code: 500, msg: '用户名和密码不能为空' })
   }
 
-  let user = UserModel.getByUsername(username)
+  let user = await UserModel.getByUsername(username)
 
   if (!user || user.password !== password) {
     return res.status(401).json({ code: 500, msg: '帐户或密码不正确' })
@@ -158,7 +157,7 @@ app.post('/login', (req, res) => {
   })
 })
 
-app.post('/userInfo', (req, res) => {
+app.post('/userInfo', async (req, res) => {
   const { accessToken } = req.body
 
   if (!accessToken) {
@@ -177,7 +176,7 @@ app.post('/userInfo', (req, res) => {
     return res.status(401).json({ code: 401, msg: '无效的token' })
   }
 
-  const user = UserModel.getByUsername(username)
+  const user = await UserModel.getByUsername(username)
   if (!user) {
     return res.status(401).json({ code: 401, msg: '用户不存在' })
   }
@@ -242,7 +241,7 @@ app.post('/api/image/upload', (req, res) => {
   }
 })
 
-app.post('/api/proxy/create', (req, res) => {
+app.post('/api/proxy/create', async (req, res) => {
   try {
     const { phone, targetUrl, expireMinutes = 60, imageId = '', userId } = req.body
 
@@ -276,7 +275,7 @@ app.post('/api/proxy/create', (req, res) => {
       imageBase64
     })
 
-    const proxy = ProxyModel.create({
+    const proxy = await ProxyModel.create({
       token,
       phone,
       targetUrl,
@@ -316,10 +315,10 @@ app.post('/api/proxy/create', (req, res) => {
   }
 })
 
-app.get('/api/proxy/list', (req, res) => {
+app.get('/api/proxy/list', async (req, res) => {
   try {
     const now = Date.now()
-    const allProxies = ProxyModel.getAll()
+    const allProxies = await ProxyModel.getAll()
     const proxies = allProxies.map(proxy => ({
       token: proxy.token,
       phone: proxy.phone || '',
@@ -346,7 +345,7 @@ app.get('/api/proxy/list', (req, res) => {
   }
 })
 
-app.post('/api/proxy/batch-create', (req, res) => {
+app.post('/api/proxy/batch-create', async (req, res) => {
   try {
     const { items, imageId = '', userId } = req.body
 
@@ -394,7 +393,7 @@ app.post('/api/proxy/batch-create', (req, res) => {
           imageBase64
         })
 
-        ProxyModel.create({
+        await ProxyModel.create({
           token,
           phone,
           targetUrl,
@@ -440,7 +439,7 @@ app.post('/api/proxy/batch-create', (req, res) => {
   }
 })
 
-app.post('/api/proxy/extend', (req, res) => {
+app.post('/api/proxy/extend', async (req, res) => {
   try {
     const { token, additionalMinutes } = req.body
 
@@ -452,7 +451,7 @@ app.post('/api/proxy/extend', (req, res) => {
     const success = tokenManager.extendToken(token, additionalTime)
 
     if (success) {
-      ProxyModel.extend(token, additionalTime)
+      await ProxyModel.extend(token, additionalTime)
     }
 
     res.json({ code: 200, success, msg: success ? 'success' : 'Failed to extend' })
@@ -462,13 +461,13 @@ app.post('/api/proxy/extend', (req, res) => {
   }
 })
 
-app.delete('/api/proxy/:token', (req, res) => {
+app.delete('/api/proxy/:token', async (req, res) => {
   try {
     const { token } = req.params
-    const existed = ProxyModel.getByToken(token)
+    const existed = await ProxyModel.getByToken(token)
 
     if (existed) {
-      ProxyModel.delete(token)
+      await ProxyModel.delete(token)
       tokenManager.removeToken(token)
     }
 
@@ -479,7 +478,7 @@ app.delete('/api/proxy/:token', (req, res) => {
   }
 })
 
-app.post('/api/proxy/batch-delete', (req, res) => {
+app.post('/api/proxy/batch-delete', async (req, res) => {
   try {
     const { tokens } = req.body
 
@@ -491,9 +490,9 @@ app.post('/api/proxy/batch-delete', (req, res) => {
     const failedTokens = []
 
     for (const token of tokens) {
-      const existed = ProxyModel.getByToken(token)
+      const existed = await ProxyModel.getByToken(token)
       if (existed) {
-        ProxyModel.delete(token)
+        await ProxyModel.delete(token)
         tokenManager.removeToken(token)
         deletedCount++
       } else {
@@ -514,7 +513,7 @@ app.post('/api/proxy/batch-delete', (req, res) => {
   }
 })
 
-app.post('/api/proxy/refresh-captcha', (req, res) => {
+app.post('/api/proxy/refresh-captcha', async (req, res) => {
   try {
     const { token } = req.body
 
@@ -522,14 +521,14 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
       return res.status(400).json({ code: 400, success: false, msg: 'Invalid token' })
     }
 
-    const proxy = ProxyModel.getByToken(token)
+    const proxy = await ProxyModel.getByToken(token)
 
     if (!proxy) {
       return res.status(400).json({ code: 400, success: false, msg: 'Token not found' })
     }
 
     if (proxy.expire_time <= Date.now()) {
-      ProxyModel.markAsExpired(token)
+      await ProxyModel.markAsExpired(token)
       return res.status(400).json({ code: 400, success: false, msg: 'Token expired' })
     }
 
@@ -543,7 +542,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
       response.on('data', (chunk) => {
         body.push(chunk)
       })
-      response.on('end', () => {
+      response.on('end', async () => {
         try {
           const responseBody = Buffer.concat(body).toString()
           const parsed = JSON.parse(responseBody)
@@ -558,7 +557,7 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
 
               const captchaTime = parsed.data.code_time || formatExpiredDate(Date.now())
 
-              ProxyModel.update(token, {
+              await ProxyModel.update(token, {
                 captchaCode: code,
                 captchaTime: captchaTime
               })
@@ -644,10 +643,10 @@ app.post('/api/proxy/refresh-captcha', (req, res) => {
   }
 })
 
-app.get('/proxy/:token', (req, res) => {
+app.get('/proxy/:token', async (req, res) => {
   const { token } = req.params
 
-  const proxy = ProxyModel.getByToken(token)
+  const proxy = await ProxyModel.getByToken(token)
 
   if (!proxy) {
     return res.json({
@@ -662,7 +661,7 @@ app.get('/proxy/:token', (req, res) => {
   }
 
   if (proxy.expire_time <= Date.now()) {
-    ProxyModel.markAsExpired(token)
+    await ProxyModel.markAsExpired(token)
     return res.json({
       code: 0,
       msg: '',
@@ -1143,10 +1142,10 @@ app.get('/proxy/:token', (req, res) => {
   res.end(html)
 })
 
-app.post('/proxy/:token', (req, res) => {
+app.post('/proxy/:token', async (req, res) => {
   const { token } = req.params
 
-  const proxy = ProxyModel.getByToken(token)
+  const proxy = await ProxyModel.getByToken(token)
 
   if (!proxy) {
     return res.json({
@@ -1161,7 +1160,7 @@ app.post('/proxy/:token', (req, res) => {
   }
 
   if (proxy.expire_time <= Date.now()) {
-    ProxyModel.markAsExpired(token)
+    await ProxyModel.markAsExpired(token)
     return res.json({
       code: 0,
       msg: '',
@@ -1192,7 +1191,7 @@ app.post('/proxy/:token', (req, res) => {
       proxyRes.on('data', (chunk) => {
         responseBody.push(chunk)
       })
-      proxyRes.on('end', () => {
+      proxyRes.on('end', async () => {
         try {
           const body = Buffer.concat(responseBody).toString()
           const parsed = JSON.parse(body)
@@ -1208,7 +1207,7 @@ app.post('/proxy/:token', (req, res) => {
               }
               const captchaTime = parsed.data.code_time || formatExpiredDate(Date.now())
 
-              ProxyModel.update(token, {
+              await ProxyModel.update(token, {
                 captchaCode: code,
                 captchaTime: captchaTime
               })
@@ -1249,14 +1248,14 @@ app.post('/proxy/:token', (req, res) => {
   proxyMiddleware(req, res)
 })
 
-app.get('/api/proxy/timer', (req, res) => {
+app.get('/api/proxy/timer', async (req, res) => {
   const { token } = req.query
 
   if (!token) {
     return res.json({ code: 400, success: false, msg: 'Invalid token' })
   }
 
-  const proxy = ProxyModel.getByToken(token)
+  const proxy = await ProxyModel.getByToken(token)
 
   if (!proxy) {
     return res.json({ code: 400, success: false, msg: 'Invalid token' })
@@ -1272,11 +1271,11 @@ app.get('/api/proxy/timer', (req, res) => {
   })
 })
 
-app.get('/api/user/list', (req, res) => {
+app.get('/api/user/list', async (req, res) => {
   try {
-    const users = UserModel.getAll()
-    const formattedUsers = users.map(user => {
-      const proxyCount = UserModel.getUserProxies(user.id).length
+    const users = await UserModel.getAll()
+    const formattedUsers = await Promise.all(users.map(async user => {
+      const proxies = await UserModel.getUserProxies(user.id)
       return {
         id: user.id,
         username: user.username,
@@ -1286,9 +1285,9 @@ app.get('/api/user/list', (req, res) => {
         status: user.status,
         permissions: JSON.parse(user.permissions || '[]'),
         createdAt: user.created_at,
-        proxyCount
+        proxyCount: proxies.length
       }
-    })
+    }))
 
     res.json({
       code: 200,
@@ -1302,7 +1301,7 @@ app.get('/api/user/list', (req, res) => {
   }
 })
 
-app.post('/api/user/create', (req, res) => {
+app.post('/api/user/create', async (req, res) => {
   try {
     const { username, password, nickname, email, role } = req.body
 
@@ -1310,13 +1309,13 @@ app.post('/api/user/create', (req, res) => {
       return res.status(400).json({ code: 400, success: false, msg: 'Missing required fields' })
     }
 
-    const existingUser = UserModel.getByUsername(username)
+    const existingUser = await UserModel.getByUsername(username)
     if (existingUser) {
       return res.status(400).json({ code: 400, success: false, msg: 'Username already exists' })
     }
 
     const userId = generateUserId()
-    const newUser = UserModel.create({
+    const newUser = await UserModel.create({
       id: userId,
       username,
       password,
@@ -1339,17 +1338,17 @@ app.post('/api/user/create', (req, res) => {
   }
 })
 
-app.put('/api/user/:id', (req, res) => {
+app.put('/api/user/:id', async (req, res) => {
   try {
     const { id } = req.params
     const { password, nickname, email, role, status, permissions } = req.body
 
-    const existingUser = UserModel.getById(id)
+    const existingUser = await UserModel.getById(id)
     if (!existingUser) {
       return res.status(404).json({ code: 404, success: false, msg: 'User not found' })
     }
 
-    UserModel.update(id, {
+    await UserModel.update(id, {
       password,
       nickname,
       email,
@@ -1509,6 +1508,10 @@ async function startServer() {
   console.log('[SERVER] Initializing access tokens...')
   await initAccessTokens()
   console.log('[SERVER] Access tokens initialized')
+  
+  console.log('[SERVER] Cleaning up expired proxies...')
+  await cleanupExpiredProxies()
+  console.log('[SERVER] Expired proxies cleaned up')
   
   const server = app.listen(PORT, () => {
     console.log(`[PROXY] Server running on http://localhost:${PORT}`)
