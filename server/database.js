@@ -1,137 +1,162 @@
-const Database = require('better-sqlite3')
+const { Pool } = require('pg')
 const path = require('path')
-const fs = require('fs')
 
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../data', 'app.db')
-const dbDir = path.dirname(dbPath)
+const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/reverse_proxy'
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
-}
+let pool = null
+let initialized = false
 
-let db = null
+async function initDatabase() {
+  if (initialized) {
+    return
+  }
 
-function initDatabase() {
-  console.log('[DB] Initializing database at:', dbPath)
-  
-  db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  console.log('[DB] Database opened')
-  
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      nickname TEXT NOT NULL,
-      email TEXT,
-      role TEXT DEFAULT 'user',
-      status TEXT DEFAULT 'active',
-      permissions TEXT DEFAULT '[]',
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    )
-  `)
-  
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS proxies (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      token TEXT UNIQUE NOT NULL,
-      phone TEXT,
-      target_url TEXT NOT NULL,
-      expire_time INTEGER NOT NULL,
-      captcha_code TEXT,
-      captcha_time TEXT,
-      image_base64 TEXT,
-      status TEXT DEFAULT 'active',
-      user_id TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `)
-  
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_token ON proxies(token)`)
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_user_id ON proxies(user_id)`)
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_expire_time ON proxies(expire_time)`)
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
-  
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get()
-  const proxyCount = db.prepare('SELECT COUNT(*) as count FROM proxies').get()
-  
-  console.log('[DB] Database contains:', {
-    users: userCount.count,
-    proxies: proxyCount.count
+  console.log('[DB] Initializing PostgreSQL database...')
+  console.log('[DB] Connection string:', connectionString.replace(/\/\/.*:.*@/, '//****:****@'))
+
+  pool = new Pool({
+    connectionString,
+    ssl: connectionString.includes('neon.tech') || connectionString.includes('supabase') 
+      ? { rejectUnauthorized: false }
+      : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
   })
+
+  pool.on('error', (err) => {
+    console.error('[DB] Unexpected error on idle client:', err)
+  })
+
+  const client = await pool.connect()
   
-  if (userCount.count === 0) {
-    const now = Date.now()
-    const insertUser = db.prepare(`
-      INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        nickname TEXT NOT NULL,
+        email TEXT,
+        role TEXT DEFAULT 'user',
+        status TEXT DEFAULT 'active',
+        permissions TEXT DEFAULT '[]',
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL
+      )
     `)
-    insertUser.run('admin', 'admin', '123456', '管理员', 'admin@example.com', 'admin', 'active', '["admin"]', now, now)
-    insertUser.run('editor', 'editor', '123456', '编辑员', 'editor@example.com', 'editor', 'active', '["editor"]', now, now)
-    insertUser.run('test', 'test', '123456', '测试员', 'test@example.com', 'user', 'active', '["user"]', now, now)
-    console.log('[DB] Initial users created')
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS proxies (
+        id SERIAL PRIMARY KEY,
+        token TEXT UNIQUE NOT NULL,
+        phone TEXT,
+        target_url TEXT NOT NULL,
+        expire_time BIGINT NOT NULL,
+        captcha_code TEXT,
+        captcha_time TEXT,
+        image_base64 TEXT,
+        status TEXT DEFAULT 'active',
+        user_id TEXT,
+        created_at BIGINT NOT NULL,
+        updated_at BIGINT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `)
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_proxies_token ON proxies(token)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_proxies_user_id ON proxies(user_id)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_proxies_expire_time ON proxies(expire_time)`)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
+
+    const result = await client.query('SELECT COUNT(*) as count FROM users')
+    const count = parseInt(result.rows[0].count)
+
+    console.log('[DB] Database contains:', {
+      users: count,
+      proxies: 'checking...'
+    })
+
+    if (count === 0) {
+      const now = Date.now()
+      await client.query(`
+        INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, ['admin', 'admin', '123456', '管理员', 'admin@example.com', 'admin', 'active', '["admin"]', now, now])
+      
+      await client.query(`
+        INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, ['editor', 'editor', '123456', '编辑员', 'editor@example.com', 'editor', 'active', '["editor"]', now, now])
+      
+      await client.query(`
+        INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, ['test', 'test', '123456', '测试员', 'test@example.com', 'user', 'active', '["user"]', now, now])
+      
+      console.log('[DB] Initial users created')
+    }
+
+    const proxyResult = await client.query('SELECT COUNT(*) as count FROM proxies')
+    console.log('[DB] Database contains:', {
+      users: count,
+      proxies: parseInt(proxyResult.rows[0].count)
+    })
+
+    console.log('[DB] PostgreSQL database initialized successfully')
+    initialized = true
+  } finally {
+    client.release()
+  }
+}
+
+async function queryAll(sql, params = []) {
+  if (!pool) {
+    await initDatabase()
   }
   
-  console.log('[DB] Database initialized successfully')
-  return db
-}
-
-function getDatabase() {
-  if (!db) {
-    db = initDatabase()
-  }
-  return db
-}
-
-function waitForDatabase() {
-  if (!db) {
-    db = initDatabase()
-  }
-  return Promise.resolve(db)
-}
-
-function runSql(sql, params = []) {
   try {
-    const stmt = db.prepare(sql)
-    const info = stmt.run(...params)
-    return info
+    const result = await pool.query(sql, params)
+    return result.rows
   } catch (err) {
-    console.error('Run error:', err)
-    return null
-  }
-}
-
-function queryAll(sql, params = []) {
-  try {
-    const stmt = db.prepare(sql)
-    return stmt.all(...params)
-  } catch (err) {
-    console.error('Query error:', err)
+    console.error('[DB] Query error:', err)
     return []
   }
 }
 
-function queryOne(sql, params = []) {
+async function queryOne(sql, params = []) {
+  const rows = await queryAll(sql, params)
+  return rows.length > 0 ? rows[0] : null
+}
+
+async function runSql(sql, params = []) {
+  if (!pool) {
+    await initDatabase()
+  }
+  
   try {
-    const stmt = db.prepare(sql)
-    return stmt.get(...params)
+    const result = await pool.query(sql, params)
+    return result
   } catch (err) {
-    console.error('Query error:', err)
+    console.error('[DB] Run error:', err)
     return null
   }
 }
 
-// Initialize database on module load
-initDatabase()
+async function waitForDatabase() {
+  await initDatabase()
+  return pool
+}
+
+function getPool() {
+  return pool
+}
 
 module.exports = {
-  getDatabase,
-  waitForDatabase,
   queryAll,
   queryOne,
-  runSql
+  runSql,
+  waitForDatabase,
+  getPool,
+  initDatabase
 }

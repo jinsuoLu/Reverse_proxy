@@ -1,25 +1,25 @@
 const { queryAll, queryOne, runSql } = require('../database')
 
 class UserModel {
-  static getAll() {
-    return queryAll('SELECT * FROM users ORDER BY created_at DESC')
+  static async getAll() {
+    return await queryAll('SELECT * FROM users ORDER BY created_at DESC')
   }
 
-  static getById(id) {
-    return queryOne('SELECT * FROM users WHERE id = ?', [id])
+  static async getById(id) {
+    return await queryOne('SELECT * FROM users WHERE id = $1', [id])
   }
 
-  static getByUsername(username) {
-    return queryOne('SELECT * FROM users WHERE username = ?', [username])
+  static async getByUsername(username) {
+    return await queryOne('SELECT * FROM users WHERE username = $1', [username])
   }
 
-  static create(userData) {
+  static async create(userData) {
     const { id, username, password, nickname, email, role, status, permissions } = userData
     const now = Date.now()
 
-    runSql(`
+    await runSql(`
       INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `, [
       id,
       username,
@@ -36,57 +36,65 @@ class UserModel {
     return { id, ...userData, created_at: now, updated_at: now }
   }
 
-  static update(id, userData) {
+  static async update(id, userData) {
     const { password, nickname, email, role, status, permissions } = userData
     const now = Date.now()
 
     const updates = []
     const params = []
+    let paramIndex = 1
 
     if (password !== undefined) {
-      updates.push('password = ?')
+      updates.push(`password = $${paramIndex}`)
       params.push(password)
+      paramIndex++
     }
     if (nickname !== undefined) {
-      updates.push('nickname = ?')
+      updates.push(`nickname = $${paramIndex}`)
       params.push(nickname)
+      paramIndex++
     }
     if (email !== undefined) {
-      updates.push('email = ?')
+      updates.push(`email = $${paramIndex}`)
       params.push(email)
+      paramIndex++
     }
     if (role !== undefined) {
-      updates.push('role = ?')
+      updates.push(`role = $${paramIndex}`)
       params.push(role)
+      paramIndex++
     }
     if (status !== undefined) {
-      updates.push('status = ?')
+      updates.push(`status = $${paramIndex}`)
       params.push(status)
+      paramIndex++
     }
     if (permissions !== undefined) {
-      updates.push('permissions = ?')
+      updates.push(`permissions = $${paramIndex}`)
       params.push(JSON.stringify(permissions))
+      paramIndex++
     }
 
-    updates.push('updated_at = ?')
+    updates.push(`updated_at = $${paramIndex}`)
     params.push(now)
+    paramIndex++
     params.push(id)
 
-    return runSql(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params)
+    return await runSql(`UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex - 1}`, params)
   }
 
-  static delete(id) {
-    return runSql('DELETE FROM users WHERE id = ?', [id])
+  static async delete(id) {
+    return await runSql('DELETE FROM users WHERE id = $1', [id])
   }
 
-  static getUserProxies(userId) {
-    return queryAll('SELECT * FROM proxies WHERE user_id = ? ORDER BY created_at DESC', [userId])
+  static async getUserProxies(userId) {
+    return await queryAll('SELECT * FROM proxies WHERE user_id = $1 ORDER BY created_at DESC', [userId])
   }
 
-  static assignProxiesToUser(userId, proxyTokens) {
+  static async assignProxiesToUser(userId, proxyTokens) {
     const now = Date.now()
     for (const token of proxyTokens) {
-      runSql('UPDATE proxies SET user_id = ?, updated_at = ? WHERE token = ?', [userId, now, token])
+      await runSql('UPDATE proxies SET user_id = $1, updated_at = $2 WHERE token = $3', [userId, now, token])
     }
     return { changes: proxyTokens.length }
   }

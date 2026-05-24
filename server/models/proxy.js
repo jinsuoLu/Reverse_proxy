@@ -1,31 +1,31 @@
 const { queryAll, queryOne, runSql } = require('../database')
 
 class ProxyModel {
-  static getAll() {
-    return queryAll('SELECT * FROM proxies ORDER BY created_at DESC')
+  static async getAll() {
+    return await queryAll('SELECT * FROM proxies ORDER BY created_at DESC')
   }
 
-  static getByToken(token) {
-    return queryOne('SELECT * FROM proxies WHERE token = ?', [token])
+  static async getByToken(token) {
+    return await queryOne('SELECT * FROM proxies WHERE token = $1', [token])
   }
 
-  static getActive() {
+  static async getActive() {
     const now = Date.now()
-    return queryAll('SELECT * FROM proxies WHERE expire_time > ? AND status = ? ORDER BY created_at DESC', [now, 'active'])
+    return await queryAll('SELECT * FROM proxies WHERE expire_time > $1 AND status = $2 ORDER BY created_at DESC', [now, 'active'])
   }
 
-  static getExpired() {
+  static async getExpired() {
     const now = Date.now()
-    return queryAll('SELECT * FROM proxies WHERE expire_time <= ? OR status = ? ORDER BY created_at DESC', [now, 'expired'])
+    return await queryAll('SELECT * FROM proxies WHERE expire_time <= $1 OR status = $2 ORDER BY created_at DESC', [now, 'expired'])
   }
 
-  static create(proxyData) {
+  static async create(proxyData) {
     const { token, phone, targetUrl, expireTime, captchaCode, captchaTime, imageBase64, userId } = proxyData
     const now = Date.now()
 
-    runSql(`
+    await runSql(`
       INSERT INTO proxies (token, phone, target_url, expire_time, captcha_code, captcha_time, image_base64, user_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `, [
       token,
       phone || null,
@@ -42,83 +42,93 @@ class ProxyModel {
     return { id: null, ...proxyData, created_at: now, updated_at: now }
   }
 
-  static update(token, proxyData) {
+  static async update(token, proxyData) {
     const { phone, targetUrl, expireTime, captchaCode, captchaTime, imageBase64, status, userId } = proxyData
     const now = Date.now()
 
     const updates = []
     const params = []
+    let paramIndex = 1
 
     if (phone !== undefined) {
-      updates.push('phone = ?')
+      updates.push(`phone = $${paramIndex}`)
       params.push(phone)
+      paramIndex++
     }
     if (targetUrl !== undefined) {
-      updates.push('target_url = ?')
+      updates.push(`target_url = $${paramIndex}`)
       params.push(targetUrl)
+      paramIndex++
     }
     if (expireTime !== undefined) {
-      updates.push('expire_time = ?')
+      updates.push(`expire_time = $${paramIndex}`)
       params.push(expireTime)
+      paramIndex++
     }
     if (captchaCode !== undefined) {
-      updates.push('captcha_code = ?')
+      updates.push(`captcha_code = $${paramIndex}`)
       params.push(captchaCode)
+      paramIndex++
     }
     if (captchaTime !== undefined) {
-      updates.push('captcha_time = ?')
+      updates.push(`captcha_time = $${paramIndex}`)
       params.push(captchaTime)
+      paramIndex++
     }
     if (imageBase64 !== undefined) {
-      updates.push('image_base64 = ?')
+      updates.push(`image_base64 = $${paramIndex}`)
       params.push(imageBase64)
+      paramIndex++
     }
     if (status !== undefined) {
-      updates.push('status = ?')
+      updates.push(`status = $${paramIndex}`)
       params.push(status)
+      paramIndex++
     }
     if (userId !== undefined) {
-      updates.push('user_id = ?')
+      updates.push(`user_id = $${paramIndex}`)
       params.push(userId)
+      paramIndex++
     }
 
-    updates.push('updated_at = ?')
+    updates.push(`updated_at = $${paramIndex}`)
     params.push(now)
+    paramIndex++
     params.push(token)
 
-    return runSql(`UPDATE proxies SET ${updates.join(', ')} WHERE token = ?`, params)
+    return await runSql(`UPDATE proxies SET ${updates.join(', ')} WHERE token = $${paramIndex - 1}`, params)
   }
 
-  static delete(token) {
-    return runSql('DELETE FROM proxies WHERE token = ?', [token])
+  static async delete(token) {
+    return await runSql('DELETE FROM proxies WHERE token = $1', [token])
   }
 
-  static markAsExpired(token) {
-    return runSql("UPDATE proxies SET status = 'expired', updated_at = ? WHERE token = ?", [Date.now(), token])
+  static async markAsExpired(token) {
+    return await runSql("UPDATE proxies SET status = 'expired', updated_at = $1 WHERE token = $2", [Date.now(), token])
   }
 
-  static extend(token, additionalTime) {
+  static async extend(token, additionalTime) {
     const now = Date.now()
-    const proxy = queryOne('SELECT expire_time FROM proxies WHERE token = ?', [token])
+    const proxy = await queryOne('SELECT expire_time FROM proxies WHERE token = $1', [token])
     if (proxy) {
       const newExpireTime = proxy.expire_time + additionalTime
-      return runSql('UPDATE proxies SET expire_time = ?, status = ?, updated_at = ? WHERE token = ?', [newExpireTime, 'active', now, token])
+      return await runSql('UPDATE proxies SET expire_time = $1, status = $2, updated_at = $3 WHERE token = $4', [newExpireTime, 'active', now, token])
     }
     return null
   }
 
-  static cleanupExpired() {
+  static async cleanupExpired() {
     const now = Date.now()
-    const expired = queryAll('SELECT * FROM proxies WHERE expire_time <= ?', [now])
+    const expired = await queryAll('SELECT * FROM proxies WHERE expire_time <= $1', [now])
     
-    runSql('DELETE FROM proxies WHERE expire_time <= ?', [now])
+    await runSql('DELETE FROM proxies WHERE expire_time <= $1', [now])
 
     return expired.length
   }
 
-  static getStats() {
+  static async getStats() {
     const now = Date.now()
-    const allProxies = queryAll('SELECT * FROM proxies')
+    const allProxies = await this.getAll()
     const total = allProxies.length
     const active = allProxies.filter(p => p.expire_time > now && p.status === 'active').length
     const expired = total - active

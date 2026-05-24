@@ -52,16 +52,14 @@ const accessTokens = {
   test: 'test-accessToken'
 }
 
-function initAccessTokens() {
-  const users = UserModel.getAll()
+async function initAccessTokens() {
+  const users = await UserModel.getAll()
   users.forEach(user => {
     if (!accessTokens[user.username]) {
       accessTokens[user.username] = `user-accessToken-${user.username}-${Date.now()}`
     }
   })
 }
-
-initAccessTokens()
 
 const imageStore = new Map()
 
@@ -1508,9 +1506,13 @@ async function startServer() {
   await waitForDatabase()
   console.log('[SERVER] Database initialized successfully')
   
+  console.log('[SERVER] Initializing access tokens...')
+  await initAccessTokens()
+  console.log('[SERVER] Access tokens initialized')
+  
   const server = app.listen(PORT, () => {
     console.log(`[PROXY] Server running on http://localhost:${PORT}`)
-    console.log(`[PROXY] Database: SQLite (${path.join(__dirname, '../data/app.db')})`)
+    console.log(`[PROXY] Database: PostgreSQL`)
     console.log(`[PROXY] Create proxy: POST /api/proxy/create`)
     console.log(`[PROXY] List proxies: GET /api/proxy/list`)
     console.log(`[PROXY] User management: GET /api/user/list`)
