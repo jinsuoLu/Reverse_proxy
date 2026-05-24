@@ -1,9 +1,6 @@
 {
   "name": "vue-admin-better",
   "version": "3.0.2",
-  "author": "zxwk1998",
-  "participants": [],
-  "homepage": "https://vuejs-core.cn",
   "scripts": {
     "serve:rspack": "node --no-deprecation rspack.js serve",
     "serve:proxy": "node server/index.js",
@@ -62,7 +59,6 @@
     "@rspack/core": "^2.0.3",
     "@rspack/dev-server": "^2.0.1",
     "@vue/cli-plugin-babel": "^5.0.8",
-    "archiver": "^8.0.0",
     "babel-eslint": "^10.1.0",
     "babel-loader": "^10.1.1",
     "body-parser": "^2.2.2",
@@ -82,7 +78,6 @@
     "sass-loader": "^10.1.1",
     "style-loader": "^4.0.0",
     "stylelint": "^17.11.1",
-    "stylelint-config-prettier": "^9.0.6",
     "stylelint-config-recess-order": "^7.7.0",
     "vue-loader": "15.9.8",
     "vue-template-compiler": "~2.7.14"
