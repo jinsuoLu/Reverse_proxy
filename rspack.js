@@ -16,8 +16,13 @@ const configPath = path.resolve(__dirname, 'rspack.config.js')
 const config = require(configPath)
 const mode = process.argv[2] === 'build' ? 'production' : 'development'
 
-// 增加archiver依赖用于创建压缩包
-const archiver = require('archiver')
+// 增加archiver依赖用于创建压缩包（可选功能）
+let archiver
+try {
+  archiver = require('archiver')
+} catch (e) {
+  archiver = null
+}
 const { promisify } = require('util')
 const pipeline = promisify(require('stream').pipeline)
 
@@ -80,8 +85,10 @@ if (mode === 'production') {
       })
     )
 
-    // 打包完成后创建压缩包
-    createArchive()
+    // 打包完成后创建压缩包（可选）
+    if (archiver) {
+      createArchive()
+    }
   })
 } else {
   // 开发环境配置
