@@ -1,27 +1,57 @@
 # .gitignore
-.DS_Store
-node_modules
-dist
-.env.local
-.env.*.local
+# 依赖
+node_modules/
+.pnp
+.pnp.js
+
+# 测试
+coverage/
+
+# 运行环境
+*.log
 npm-debug.log*
-yarn.lock
 yarn-debug.log*
 yarn-error.log*
-.idea
+pnpm-debug.log*
+lerna-debug.log*
+
+# 操作系统
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-public/video
+
+# 构建产物（我们使用预构建的 dist 目录）
+# dist/  # 注释掉，因为我们要在 Git 中保留 dist
+
+# 本地数据库（避免提交到 Git）
+data/
+
+# 环境变量
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# npm
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.lock
+
+# History
+.history/
+
+# 压缩包
 *.zip
-*.7z
-/src/layouts/components/layouts
-/zx-templates
-/package-lock.json
-/src/styles/themes/green.scss
-/src/styles/themes/dark.scss
-/src/styles/themes/glory.scss
-/.history
-/data
+*.tar.gz
