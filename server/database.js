@@ -2,8 +2,8 @@ const Database = require('better-sqlite3')
 const path = require('path')
 const fs = require('fs')
 
-const dbDir = path.join(__dirname, '../data')
-const dbPath = path.join(dbDir, 'app.db')
+const dbPath = process.env.DB_PATH || path.join(__dirname, '../data', 'app.db')
+const dbDir = path.dirname(dbPath)
 
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
@@ -12,8 +12,11 @@ if (!fs.existsSync(dbDir)) {
 let db = null
 
 function initDatabase() {
+  console.log('[DB] Initializing database at:', dbPath)
+  
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
+  console.log('[DB] Database opened')
   
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -53,10 +56,15 @@ function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_expire_time ON proxies(expire_time)`)
   db.exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
   
-  const result = db.prepare('SELECT COUNT(*) as count FROM users').get()
-  const count = result.count
+  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get()
+  const proxyCount = db.prepare('SELECT COUNT(*) as count FROM proxies').get()
   
-  if (count === 0) {
+  console.log('[DB] Database contains:', {
+    users: userCount.count,
+    proxies: proxyCount.count
+  })
+  
+  if (userCount.count === 0) {
     const now = Date.now()
     const insertUser = db.prepare(`
       INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
@@ -68,7 +76,7 @@ function initDatabase() {
     console.log('[DB] Initial users created')
   }
   
-  console.log('[DB] Database initialized')
+  console.log('[DB] Database initialized successfully')
   return db
 }
 
