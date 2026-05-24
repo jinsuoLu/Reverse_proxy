@@ -1,63 +1,4 @@
-const { getDatabase, saveDatabase } = require('../database')
-
-function queryAll(sql, params = []) {
-  const db = getDatabase()
-  if (!db) return []
-  
-  try {
-    const result = db.exec(sql, params)
-    if (result.length === 0) return []
-    
-    const columns = result[0].columns
-    const values = result[0].values
-    
-    return values.map(row => {
-      const obj = {}
-      columns.forEach((col, idx) => {
-        obj[col] = row[idx]
-      })
-      return obj
-    })
-  } catch (err) {
-    console.error('Query error:', err)
-    return []
-  }
-}
-
-function queryOne(sql, params = []) {
-  const results = queryAll(sql, params)
-  return results.length > 0 ? results[0] : null
-}
-
-function runSql(sql, params = []) {
-  const db = getDatabase()
-  if (!db) return null
-  
-  try {
-    db.run(sql, params)
-    saveDatabase()
-    return { changes: db.getRowsModified() }
-  } catch (err) {
-    console.error('Run error:', err)
-    return null
-  }
-}
-
-function getLastInsertRowid() {
-  const db = getDatabase()
-  if (!db) return null
-  
-  try {
-    const result = db.exec('SELECT last_insert_rowid() as id')
-    if (result.length > 0 && result[0].values.length > 0) {
-      return result[0].values[0][0]
-    }
-    return null
-  } catch (err) {
-    console.error('Get last insert rowid error:', err)
-    return null
-  }
-}
+const { queryAll, queryOne, runSql } = require('../database')
 
 class ProxyModel {
   static getAll() {
@@ -98,7 +39,7 @@ class ProxyModel {
       now
     ])
 
-    return { id: getLastInsertRowid(), ...proxyData, created_at: now, updated_at: now }
+    return { id: null, ...proxyData, created_at: now, updated_at: now }
   }
 
   static update(token, proxyData) {
@@ -171,7 +112,6 @@ class ProxyModel {
     const expired = queryAll('SELECT * FROM proxies WHERE expire_time <= ?', [now])
     
     runSql('DELETE FROM proxies WHERE expire_time <= ?', [now])
-    runSql("UPDATE proxies SET status = 'expired' WHERE expire_time <= ?", [now])
 
     return expired.length
   }

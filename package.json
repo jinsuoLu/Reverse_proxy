@@ -47,7 +47,7 @@
     "qs": "^6.15.2",
     "screenfull": "^5.2.0",
     "sortablejs": "^1.15.7",
-    "sql.js": "^1.10.2",
+    "better-sqlite3": "^9.2.2",
     "vab-icon": "file:vab-icon",
     "vue": "~2.7.14",
     "vue-echarts": "6.7.3",

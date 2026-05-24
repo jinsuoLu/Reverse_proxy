@@ -1,47 +1,4 @@
-const { getDatabase, saveDatabase } = require('../database')
-
-function queryAll(sql, params = []) {
-  const db = getDatabase()
-  if (!db) return []
-  
-  try {
-    const result = db.exec(sql, params)
-    if (result.length === 0) return []
-    
-    const columns = result[0].columns
-    const values = result[0].values
-    
-    return values.map(row => {
-      const obj = {}
-      columns.forEach((col, idx) => {
-        obj[col] = row[idx]
-      })
-      return obj
-    })
-  } catch (err) {
-    console.error('Query error:', err)
-    return []
-  }
-}
-
-function queryOne(sql, params = []) {
-  const results = queryAll(sql, params)
-  return results.length > 0 ? results[0] : null
-}
-
-function runSql(sql, params = []) {
-  const db = getDatabase()
-  if (!db) return null
-  
-  try {
-    db.run(sql, params)
-    saveDatabase()
-    return { changes: db.getRowsModified() }
-  } catch (err) {
-    console.error('Run error:', err)
-    return null
-  }
-}
+const { queryAll, queryOne, runSql } = require('../database')
 
 class UserModel {
   static getAll() {

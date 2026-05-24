@@ -1,4 +1,4 @@
-const initSqlJs = require('sql.js')
+const Database = require('better-sqlite3')
 const path = require('path')
 const fs = require('fs')
 
@@ -10,20 +10,12 @@ if (!fs.existsSync(dbDir)) {
 }
 
 let db = null
-let dbReady = null
 
-async function initDatabase() {
-  const SQL = await initSqlJs()
+function initDatabase() {
+  db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
   
-  let data = null
-  if (fs.existsSync(dbPath)) {
-    data = fs.readFileSync(dbPath)
-    console.log('[DB] Loaded existing database')
-  }
-  
-  db = new SQL.Database(data)
-  
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
@@ -38,7 +30,7 @@ async function initDatabase() {
     )
   `)
   
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS proxies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       token TEXT UNIQUE NOT NULL,
@@ -56,57 +48,82 @@ async function initDatabase() {
     )
   `)
   
-  db.run(`CREATE INDEX IF NOT EXISTS idx_proxies_token ON proxies(token)`)
-  db.run(`CREATE INDEX IF NOT EXISTS idx_proxies_user_id ON proxies(user_id)`)
-  db.run(`CREATE INDEX IF NOT EXISTS idx_proxies_expire_time ON proxies(expire_time)`)
-  db.run(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_token ON proxies(token)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_user_id ON proxies(user_id)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_proxies_expire_time ON proxies(expire_time)`)
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
   
-  const result = db.exec('SELECT COUNT(*) as count FROM users')
-  const count = result.length > 0 ? result[0].values[0][0] : 0
+  const result = db.prepare('SELECT COUNT(*) as count FROM users').get()
+  const count = result.count
   
   if (count === 0) {
     const now = Date.now()
-    db.run(`INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['admin', 'admin', '123456', '管理员', 'admin@example.com', 'admin', 'active', '["admin"]', now, now])
-    db.run(`INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['editor', 'editor', '123456', '编辑员', 'editor@example.com', 'editor', 'active', '["editor"]', now, now])
-    db.run(`INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['test', 'test', '123456', '测试员', 'test@example.com', 'user', 'active', '["user"]', now, now])
+    const insertUser = db.prepare(`
+      INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    insertUser.run('admin', 'admin', '123456', '管理员', 'admin@example.com', 'admin', 'active', '["admin"]', now, now)
+    insertUser.run('editor', 'editor', '123456', '编辑员', 'editor@example.com', 'editor', 'active', '["editor"]', now, now)
+    insertUser.run('test', 'test', '123456', '测试员', 'test@example.com', 'user', 'active', '["user"]', now, now)
     console.log('[DB] Initial users created')
-    saveDatabase()
   }
   
+  console.log('[DB] Database initialized')
   return db
 }
 
-function saveDatabase() {
-  if (db) {
-    const data = db.export()
-    const buffer = Buffer.from(data)
-    fs.writeFileSync(dbPath, buffer)
-    console.log('[DB] Database saved')
-  }
-}
-
 function getDatabase() {
+  if (!db) {
+    db = initDatabase()
+  }
   return db
 }
 
 function waitForDatabase() {
-  return dbReady
+  if (!db) {
+    db = initDatabase()
+  }
+  return Promise.resolve(db)
 }
 
-function runWithSave(sql, params = []) {
-  const result = db.run(sql, params)
-  saveDatabase()
-  return result
+function runSql(sql, params = []) {
+  try {
+    const stmt = db.prepare(sql)
+    const info = stmt.run(...params)
+    return info
+  } catch (err) {
+    console.error('Run error:', err)
+    return null
+  }
 }
 
-dbReady = initDatabase()
+function queryAll(sql, params = []) {
+  try {
+    const stmt = db.prepare(sql)
+    return stmt.all(...params)
+  } catch (err) {
+    console.error('Query error:', err)
+    return []
+  }
+}
+
+function queryOne(sql, params = []) {
+  try {
+    const stmt = db.prepare(sql)
+    return stmt.get(...params)
+  } catch (err) {
+    console.error('Query error:', err)
+    return null
+  }
+}
+
+// Initialize database on module load
+initDatabase()
 
 module.exports = {
   getDatabase,
-  saveDatabase,
   waitForDatabase,
-  runWithSave
+  queryAll,
+  queryOne,
+  runSql
 }
