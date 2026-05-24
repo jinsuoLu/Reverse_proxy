@@ -1,31 +1,69 @@
-const db = require('../database')
+const { getDatabase, saveDatabase } = require('../database')
+
+function queryAll(sql, params = []) {
+  const db = getDatabase()
+  if (!db) return []
+  
+  try {
+    const result = db.exec(sql, params)
+    if (result.length === 0) return []
+    
+    const columns = result[0].columns
+    const values = result[0].values
+    
+    return values.map(row => {
+      const obj = {}
+      columns.forEach((col, idx) => {
+        obj[col] = row[idx]
+      })
+      return obj
+    })
+  } catch (err) {
+    console.error('Query error:', err)
+    return []
+  }
+}
+
+function queryOne(sql, params = []) {
+  const results = queryAll(sql, params)
+  return results.length > 0 ? results[0] : null
+}
+
+function runSql(sql, params = []) {
+  const db = getDatabase()
+  if (!db) return null
+  
+  try {
+    db.run(sql, params)
+    saveDatabase()
+    return { changes: db.getRowsModified() }
+  } catch (err) {
+    console.error('Run error:', err)
+    return null
+  }
+}
 
 class UserModel {
   static getAll() {
-    const stmt = db.prepare('SELECT * FROM users ORDER BY created_at DESC')
-    return stmt.all()
+    return queryAll('SELECT * FROM users ORDER BY created_at DESC')
   }
 
   static getById(id) {
-    const stmt = db.prepare('SELECT * FROM users WHERE id = ?')
-    return stmt.get(id)
+    return queryOne('SELECT * FROM users WHERE id = ?', [id])
   }
 
   static getByUsername(username) {
-    const stmt = db.prepare('SELECT * FROM users WHERE username = ?')
-    return stmt.get(username)
+    return queryOne('SELECT * FROM users WHERE username = ?', [username])
   }
 
   static create(userData) {
     const { id, username, password, nickname, email, role, status, permissions } = userData
     const now = Date.now()
 
-    const stmt = db.prepare(`
+    runSql(`
       INSERT INTO users (id, username, password, nickname, email, role, status, permissions, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    const result = stmt.run(
+    `, [
       id,
       username,
       password,
@@ -36,7 +74,7 @@ class UserModel {
       JSON.stringify(permissions || []),
       now,
       now
-    )
+    ])
 
     return { id, ...userData, created_at: now, updated_at: now }
   }
@@ -77,31 +115,23 @@ class UserModel {
     params.push(now)
     params.push(id)
 
-    const stmt = db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
-    return stmt.run(...params)
+    return runSql(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params)
   }
 
   static delete(id) {
-    const stmt = db.prepare('DELETE FROM users WHERE id = ?')
-    return stmt.run(id)
+    return runSql('DELETE FROM users WHERE id = ?', [id])
   }
 
   static getUserProxies(userId) {
-    const stmt = db.prepare('SELECT * FROM proxies WHERE user_id = ? ORDER BY created_at DESC')
-    return stmt.all(userId)
+    return queryAll('SELECT * FROM proxies WHERE user_id = ? ORDER BY created_at DESC', [userId])
   }
 
   static assignProxiesToUser(userId, proxyTokens) {
-    const stmt = db.prepare('UPDATE proxies SET user_id = ?, updated_at = ? WHERE token = ?')
     const now = Date.now()
-
-    const updateMany = db.transaction((tokens) => {
-      for (const token of tokens) {
-        stmt.run(userId, now, token)
-      }
-    })
-
-    return updateMany(proxyTokens)
+    for (const token of proxyTokens) {
+      runSql('UPDATE proxies SET user_id = ?, updated_at = ? WHERE token = ?', [userId, now, token])
+    }
+    return { changes: proxyTokens.length }
   }
 }
 

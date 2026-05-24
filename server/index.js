@@ -1496,21 +1496,34 @@ if (fs.existsSync(distPath)) {
   console.log('[SERVER] To deploy frontend, run: npm run build')
 }
 
-const server = app.listen(PORT, () => {
-  console.log(`[PROXY] Server running on http://localhost:${PORT}`)
-  console.log(`[PROXY] Database: SQLite (${require('path').join(__dirname, '../data/app.db')})`)
-  console.log(`[PROXY] Create proxy: POST /api/proxy/create`)
-  console.log(`[PROXY] List proxies: GET /api/proxy/list`)
-  console.log(`[PROXY] User management: GET /api/user/list`)
-  console.log(`[PROXY] Stats: GET /api/stats`)
-})
+const { waitForDatabase } = require('./database')
 
-process.on('SIGTERM', () => {
-  console.log('[PROXY] SIGTERM received, closing server...')
-  server.close(() => {
-    console.log('[PROXY] Server closed')
-    process.exit(0)
+async function startServer() {
+  console.log('[SERVER] Initializing database...')
+  await waitForDatabase()
+  console.log('[SERVER] Database initialized successfully')
+  
+  const server = app.listen(PORT, () => {
+    console.log(`[PROXY] Server running on http://localhost:${PORT}`)
+    console.log(`[PROXY] Database: SQLite (${path.join(__dirname, '../data/app.db')})`)
+    console.log(`[PROXY] Create proxy: POST /api/proxy/create`)
+    console.log(`[PROXY] List proxies: GET /api/proxy/list`)
+    console.log(`[PROXY] User management: GET /api/user/list`)
+    console.log(`[PROXY] Stats: GET /api/stats`)
   })
-})
+  
+  process.on('SIGTERM', () => {
+    console.log('[PROXY] SIGTERM received, closing server...')
+    server.close(() => {
+      console.log('[PROXY] Server closed')
+      process.exit(0)
+    })
+  })
+  
+  return server
+}
 
-module.exports = { app, server }
+startServer().catch(err => {
+  console.error('[SERVER] Failed to start server:', err)
+  process.exit(1)
+})

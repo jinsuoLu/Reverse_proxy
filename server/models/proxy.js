@@ -1,38 +1,91 @@
-const db = require('../database')
+const { getDatabase, saveDatabase } = require('../database')
+
+function queryAll(sql, params = []) {
+  const db = getDatabase()
+  if (!db) return []
+  
+  try {
+    const result = db.exec(sql, params)
+    if (result.length === 0) return []
+    
+    const columns = result[0].columns
+    const values = result[0].values
+    
+    return values.map(row => {
+      const obj = {}
+      columns.forEach((col, idx) => {
+        obj[col] = row[idx]
+      })
+      return obj
+    })
+  } catch (err) {
+    console.error('Query error:', err)
+    return []
+  }
+}
+
+function queryOne(sql, params = []) {
+  const results = queryAll(sql, params)
+  return results.length > 0 ? results[0] : null
+}
+
+function runSql(sql, params = []) {
+  const db = getDatabase()
+  if (!db) return null
+  
+  try {
+    db.run(sql, params)
+    saveDatabase()
+    return { changes: db.getRowsModified() }
+  } catch (err) {
+    console.error('Run error:', err)
+    return null
+  }
+}
+
+function getLastInsertRowid() {
+  const db = getDatabase()
+  if (!db) return null
+  
+  try {
+    const result = db.exec('SELECT last_insert_rowid() as id')
+    if (result.length > 0 && result[0].values.length > 0) {
+      return result[0].values[0][0]
+    }
+    return null
+  } catch (err) {
+    console.error('Get last insert rowid error:', err)
+    return null
+  }
+}
 
 class ProxyModel {
   static getAll() {
-    const stmt = db.prepare('SELECT * FROM proxies ORDER BY created_at DESC')
-    return stmt.all()
+    return queryAll('SELECT * FROM proxies ORDER BY created_at DESC')
   }
 
   static getByToken(token) {
-    const stmt = db.prepare('SELECT * FROM proxies WHERE token = ?')
-    return stmt.get(token)
+    return queryOne('SELECT * FROM proxies WHERE token = ?', [token])
   }
 
   static getActive() {
     const now = Date.now()
-    const stmt = db.prepare('SELECT * FROM proxies WHERE expire_time > ? AND status = ? ORDER BY created_at DESC')
-    return stmt.all(now, 'active')
+    return queryAll('SELECT * FROM proxies WHERE expire_time > ? AND status = ? ORDER BY created_at DESC', [now, 'active'])
   }
 
   static getExpired() {
     const now = Date.now()
-    const stmt = db.prepare('SELECT * FROM proxies WHERE expire_time <= ? OR status = ? ORDER BY created_at DESC')
-    return stmt.all(now, 'expired')
+    return queryAll('SELECT * FROM proxies WHERE expire_time <= ? OR status = ? ORDER BY created_at DESC', [now, 'expired'])
   }
 
   static create(proxyData) {
     const { token, phone, targetUrl, expireTime, captchaCode, captchaTime, imageBase64, userId } = proxyData
     const now = Date.now()
 
-    const stmt = db.prepare(`
+    runSql(`
       INSERT INTO proxies (token, phone, target_url, expire_time, captcha_code, captcha_time, image_base64, user_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    const result = stmt.run(
+    `, [
       token,
       phone || null,
       targetUrl,
@@ -43,9 +96,9 @@ class ProxyModel {
       userId || null,
       now,
       now
-    )
+    ])
 
-    return { id: result.lastInsertRowid, ...proxyData, created_at: now, updated_at: now }
+    return { id: getLastInsertRowid(), ...proxyData, created_at: now, updated_at: now }
   }
 
   static update(token, proxyData) {
@@ -92,39 +145,42 @@ class ProxyModel {
     params.push(now)
     params.push(token)
 
-    const stmt = db.prepare(`UPDATE proxies SET ${updates.join(', ')} WHERE token = ?`)
-    return stmt.run(...params)
+    return runSql(`UPDATE proxies SET ${updates.join(', ')} WHERE token = ?`, params)
   }
 
   static delete(token) {
-    const stmt = db.prepare('DELETE FROM proxies WHERE token = ?')
-    return stmt.run(token)
+    return runSql('DELETE FROM proxies WHERE token = ?', [token])
   }
 
   static markAsExpired(token) {
-    const stmt = db.prepare("UPDATE proxies SET status = 'expired', updated_at = ? WHERE token = ?")
-    return stmt.run(Date.now(), token)
+    return runSql("UPDATE proxies SET status = 'expired', updated_at = ? WHERE token = ?", [Date.now(), token])
   }
 
   static extend(token, additionalTime) {
-    const stmt = db.prepare('UPDATE proxies SET expire_time = expire_time + ?, status = ?, updated_at = ? WHERE token = ?')
-    return stmt.run(additionalTime, 'active', Date.now(), token)
+    const now = Date.now()
+    const proxy = queryOne('SELECT expire_time FROM proxies WHERE token = ?', [token])
+    if (proxy) {
+      const newExpireTime = proxy.expire_time + additionalTime
+      return runSql('UPDATE proxies SET expire_time = ?, status = ?, updated_at = ? WHERE token = ?', [newExpireTime, 'active', now, token])
+    }
+    return null
   }
 
   static cleanupExpired() {
     const now = Date.now()
-    const stmt = db.prepare('DELETE FROM proxies WHERE expire_time <= ? AND status = ?')
-    const result = stmt.run(now, 'active')
+    const expired = queryAll('SELECT * FROM proxies WHERE expire_time <= ?', [now])
+    
+    runSql('DELETE FROM proxies WHERE expire_time <= ?', [now])
+    runSql("UPDATE proxies SET status = 'expired' WHERE expire_time <= ?", [now])
 
-    db.prepare("UPDATE proxies SET status = 'expired' WHERE expire_time <= ?").run(now)
-
-    return result.changes
+    return expired.length
   }
 
   static getStats() {
     const now = Date.now()
-    const total = db.prepare('SELECT COUNT(*) as count FROM proxies').get().count
-    const active = db.prepare('SELECT COUNT(*) as count FROM proxies WHERE expire_time > ? AND status = ?').get(now, 'active').count
+    const allProxies = queryAll('SELECT * FROM proxies')
+    const total = allProxies.length
+    const active = allProxies.filter(p => p.expire_time > now && p.status === 'active').length
     const expired = total - active
 
     return { total, active, expired }
