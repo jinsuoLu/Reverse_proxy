@@ -3,11 +3,8 @@
  **/
 
 // 检测是否在生产环境或已构建环境
-const isProduction = process.env.NODE_ENV === 'production' || process.env.VUE_APP_DEPLOY_MODE === 'production'
-
-// 后端服务器地址
-// 生产环境使用相对路径（同源部署），开发环境使用 localhost
-const BACKEND_SERVER_URL = isProduction ? '' : 'http://localhost:3001'
+// 使用相对路径（同源部署），只在本地开发时使用 localhost
+const BACKEND_SERVER_URL = '' // 生产环境使用相对路径
 const baseURL = BACKEND_SERVER_URL
 
 const network = {
