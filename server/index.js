@@ -249,6 +249,9 @@ app.post('/api/proxy/create', async (req, res) => {
   try {
     const { phone, targetUrl, expireMinutes = 60, imageId = '', userId } = req.body
 
+    console.log('[DEBUG] Create proxy request body:', req.body)
+    console.log('[DEBUG] expireMinutes value:', expireMinutes, 'type:', typeof expireMinutes)
+
     if (!targetUrl) {
       return res.status(400).json({ code: 400, success: false, msg: 'Target URL is required' })
     }
@@ -260,6 +263,7 @@ app.post('/api/proxy/create', async (req, res) => {
     }
 
     const expireMinutesNum = Math.min(Math.max(parseInt(expireMinutes) || 60, 1), 10080)
+    console.log('[DEBUG] expireMinutesNum:', expireMinutesNum)
 
     let imageBase64 = ''
     if (imageId && imageStore.has(imageId)) {
@@ -267,13 +271,15 @@ app.post('/api/proxy/create', async (req, res) => {
     }
 
     const token = generateToken()
-    const expireTime = Date.now() + expireMinutesNum * 60 * 1000
+    const now = Date.now()
+    const expireTime = now + expireMinutesNum * 60 * 1000
+    console.log('[DEBUG] Created at:', now, '- Expires at:', expireTime, '- Diff:', expireMinutesNum, 'minutes')
 
     tokenManager.addToken(token, {
       phone,
       targetUrl,
       expireTime,
-      createdAt: Date.now(),
+      createdAt: now,
       captchaCode: '',
       captchaTime: '',
       imageBase64
