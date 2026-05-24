@@ -293,7 +293,8 @@ export default {
     },
     formatDateTime(timestamp) {
       if (!timestamp) return '-'
-      const date = new Date(timestamp)
+      const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+      const date = new Date(ts)
       return date.toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
@@ -455,11 +456,14 @@ export default {
         const res = await getUserProxies(row.id)
         if (res.success) {
           const now = Date.now()
-          this.currentUserProxies = res.data.map(item => ({
-            ...item,
-            expiredDate: this.formatDateTime(item.expireTime),
-            isExpired: item.expireTime <= now,
-          }))
+          this.currentUserProxies = res.data.map(item => {
+            const expireTs = typeof item.expireTime === 'string' ? parseInt(item.expireTime, 10) : item.expireTime
+            return {
+              ...item,
+              expiredDate: this.formatDateTime(expireTs),
+              isExpired: expireTs <= now,
+            }
+          })
         }
       } catch (error) {
         this.$message.error('获取用户授权API列表失败')

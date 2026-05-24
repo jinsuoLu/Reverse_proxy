@@ -366,11 +366,14 @@ export default {
           if (!Array.isArray(data)) {
             data = []
           }
-          this.proxyList = data.map(item => ({
-            ...item,
-            remainingTime: this.calculateRemainingTime(item.expireTime),
-            isExpired: item.expireTime <= Date.now(),
-          }))
+          this.proxyList = data.map(item => {
+            const expireTs = typeof item.expireTime === 'string' ? parseInt(item.expireTime, 10) : item.expireTime
+            return {
+              ...item,
+              remainingTime: this.calculateRemainingTime(expireTs),
+              isExpired: expireTs <= Date.now(),
+            }
+          })
           this.total = this.proxyList.length
         }
       } catch (error) {
@@ -381,12 +384,14 @@ export default {
       }
     },
     calculateRemainingTime(expireTime) {
-      const remaining = expireTime - Date.now()
+      const expireTs = typeof expireTime === 'string' ? parseInt(expireTime, 10) : expireTime
+      const remaining = expireTs - Date.now()
       return remaining > 0 ? remaining : 0
     },
     formatDateTime(timestamp) {
       if (!timestamp) return '-'
-      const date = new Date(timestamp)
+      const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+      const date = new Date(ts)
       return date.toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
