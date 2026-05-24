@@ -249,7 +249,7 @@ app.post('/api/proxy/create', async (req, res) => {
   try {
     const { phone, targetUrl, expireMinutes = 60, imageId = '', userId } = req.body
 
-    console.log('[DEBUG] Create proxy request body:', req.body)
+    console.log('[DEBUG] Create proxy request body:', JSON.stringify(req.body))
     console.log('[DEBUG] expireMinutes value:', expireMinutes, 'type:', typeof expireMinutes)
 
     if (!targetUrl) {
@@ -263,7 +263,7 @@ app.post('/api/proxy/create', async (req, res) => {
     }
 
     const expireMinutesNum = Math.min(Math.max(parseInt(expireMinutes) || 60, 1), 10080)
-    console.log('[DEBUG] expireMinutesNum:', expireMinutesNum)
+    console.log('[DEBUG] expireMinutesNum:', expireMinutesNum, 'parsed from:', expireMinutes)
 
     let imageBase64 = ''
     if (imageId && imageStore.has(imageId)) {
@@ -273,7 +273,9 @@ app.post('/api/proxy/create', async (req, res) => {
     const token = generateToken()
     const now = Date.now()
     const expireTime = now + expireMinutesNum * 60 * 1000
-    console.log('[DEBUG] Created at:', now, '- Expires at:', expireTime, '- Diff:', expireMinutesNum, 'minutes')
+    console.log('[DEBUG] Created at:', now, `(${new Date(now).toISOString()})`)
+    console.log('[DEBUG] Expires at:', expireTime, `(${new Date(expireTime).toISOString()})`)
+    console.log('[DEBUG] Diff:', expireMinutesNum, 'minutes =', expireMinutesNum * 60 * 1000, 'ms')
 
     tokenManager.addToken(token, {
       phone,
