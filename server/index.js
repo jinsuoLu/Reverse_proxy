@@ -1544,7 +1544,8 @@ async function startServer() {
   
   const server = app.listen(PORT, () => {
     console.log(`[PROXY] Server running on http://localhost:${PORT}`)
-    console.log(`[PROXY] Database: PostgreSQL`)
+    console.log(`[PROXY] Database: SQLite (local storage)`)
+    console.log(`[PROXY] Database path: ${require('path').join(__dirname, 'data', 'database.db')}`)
     console.log(`[PROXY] Create proxy: POST /api/proxy/create`)
     console.log(`[PROXY] List proxies: GET /api/proxy/list`)
     console.log(`[PROXY] User management: GET /api/user/list`)
