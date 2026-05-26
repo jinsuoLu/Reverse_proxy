@@ -1510,9 +1510,19 @@ app.get('/health', (req, res) => {
 })
 
 const distPath = path.join(__dirname, '..', 'dist')
+const staticPath = express.static(distPath, {
+  maxAge: '1d',
+  etag: false,
+})
+
+app.use('/js/', staticPath)
+app.use('/css/', staticPath)
+app.use('/img/', staticPath)
+app.use('/fonts/', staticPath)
+app.use('/favicon.ico', staticPath)
+
 if (fs.existsSync(distPath)) {
   console.log(`[SERVER] Serving static files from: ${distPath}`)
-  app.use(express.static(distPath))
   
   app.get('*', (req, res) => {
     const indexPath = path.join(distPath, 'index.html')

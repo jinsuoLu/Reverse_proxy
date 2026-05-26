@@ -6,6 +6,7 @@
     "serve:proxy": "node server/index.js",
     "serve:all": "npm run serve:rspack & npm run serve:proxy",
     "build": "node --no-deprecation rspack.js build",
+    "build:render": "npm install && npm run build",
     "print-info": "node -e \"require('./layouts').donationConsole()\"",
     "lint": "eslint {src,mock,library}/**/*.{vue,js} --fix",
     "lint:prettier": "prettier {src,mock,library}/**/*.{html,vue,css,sass,scss,js,ts,md} --write",
