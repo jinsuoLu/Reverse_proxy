@@ -1510,19 +1510,16 @@ app.get('/health', (req, res) => {
 })
 
 const distPath = path.join(__dirname, '..', 'dist')
-const staticPath = express.static(distPath, {
-  maxAge: '1d',
-  etag: false,
-})
-
-app.use('/js/', staticPath)
-app.use('/css/', staticPath)
-app.use('/img/', staticPath)
-app.use('/fonts/', staticPath)
-app.use('/favicon.ico', staticPath)
 
 if (fs.existsSync(distPath)) {
   console.log(`[SERVER] Serving static files from: ${distPath}`)
+  
+  const staticMiddleware = express.static(distPath, {
+    maxAge: '1d',
+    etag: false,
+  })
+  
+  app.use(staticMiddleware)
   
   app.get('*', (req, res) => {
     const indexPath = path.join(distPath, 'index.html')
@@ -1535,6 +1532,15 @@ if (fs.existsSync(distPath)) {
 } else {
   console.log('[SERVER] Warning: dist folder not found. Frontend not deployed.')
   console.log('[SERVER] To deploy frontend, run: npm run build')
+  
+  app.get('*', (req, res) => {
+    res.status(503).json({
+      code: 503,
+      success: false,
+      msg: 'Frontend not built. Please build the project first.',
+      hint: 'Run: npm run build'
+    })
+  })
 }
 
 const { waitForDatabase } = require('./database')
