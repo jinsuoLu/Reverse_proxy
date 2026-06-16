@@ -1,0 +1,15 @@
+services:
+  reverse-proxy:
+    build: .
+    container_name: reverse-proxy
+    restart: unless-stopped
+    ports:
+      # ホスト側ポート:コンテナ側ポート（左を変えれば公開ポートを変更できる）
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SQLITE_DB_PATH=/app/data/database.db
+    volumes:
+      # SQLite DB をホスト側 ./data に永続化（コンテナを作り直してもデータが残る）
+      - ./data:/app/data
